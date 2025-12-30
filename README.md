@@ -20,7 +20,7 @@ A minimal, focused agenda view for your markdown notes. Scans your notes directo
 
 ```lua
 {
-  'kamilkosek/markdown-agenda.nvim',
+  'Kamyil/markdown-agenda.nvim',
   opts = {
     directory = '~/notes',
   },
@@ -31,7 +31,7 @@ A minimal, focused agenda view for your markdown notes. Scans your notes directo
 
 ```lua
 use {
-  'kamilkosek/markdown-agenda.nvim',
+  'Kamyil/markdown-agenda.nvim',
   config = function()
     require('markdown-agenda').setup({
       directory = '~/notes',
