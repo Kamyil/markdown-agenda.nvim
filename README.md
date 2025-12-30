@@ -1,5 +1,5 @@
 # markdown-agenda.nvim
-
+**BETA: This plugin was just created. I'm using it personally during work and personal stuff, but expect some bugs. Please report them if encountered**
 A minimal, focused agenda view for your markdown notes. Scans your notes directory for tasks with `@scheduled(DATE)` and `@deadline(DATE)` annotations and displays them in a collapsible floating window.
 
 ![Agenda Screenshot](agenda.jpg)
