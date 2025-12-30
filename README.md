@@ -2,6 +2,8 @@
 
 A minimal, focused agenda view for your markdown notes. Scans your notes directory for tasks with `@scheduled(DATE)` and `@deadline(DATE)` annotations and displays them in a collapsible floating window.
 
+![Agenda Screenshot](agenda.jpg)
+
 ![Neovim](https://img.shields.io/badge/Neovim-0.9+-green?logo=neovim)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
