@@ -7,12 +7,12 @@ A minimal, focused agenda view for your markdown notes. Scans your notes directo
 
 ## Features
 
-- 📅 **Agenda view** - Today's tasks + weekly overview in a floating window
-- 🔴🟡🟢 **Deadline urgency** - Visual indicators for deadline proximity
-- ⚠️ **Overdue tracking** - Never miss a deadline again
-- 📌 **Scheduled tasks** - Plan your work with scheduled dates
-- 🔄 **Collapsible sections** - Toggle Today/Week sections with `<Tab>`
-- ⚡ **Zero dependencies** - Pure Lua, no external dependencies
+- **Agenda view** - Today's tasks + weekly overview in a floating window
+- **Deadline urgency** - Visual indicators for deadline proximity
+- **Overdue tracking** - Never miss a deadline again
+- **Scheduled tasks** - Plan your work with scheduled dates
+- **Collapsible sections** - Toggle Today/Week sections with `<Tab>`
+- **Zero dependencies** - Pure Lua, no external dependencies
 
 ## Installation
 
@@ -21,6 +21,9 @@ A minimal, focused agenda view for your markdown notes. Scans your notes directo
 ```lua
 {
   'Kamyil/markdown-agenda.nvim',
+  -- Required for :MarkdownAgenda command to be available
+  -- Alternatively, use: cmd = 'MarkdownAgenda' for lazy-loading on command
+  lazy = false,
   opts = {
     directory = '~/notes',
   },
