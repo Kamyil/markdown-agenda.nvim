@@ -4,7 +4,7 @@ local defaults = {
   directory = '~/notes',
   recursive = true,
   date_format = '%Y-%m-%d',
-  show_help = true,
+  help = true,
   calendar = {
     enabled = true,
     months_to_show = 3,
@@ -37,6 +37,10 @@ local state = {
 local DAY_SECONDS = 24 * 60 * 60
 local format_task_line
 local pad_to_display_width
+
+local function is_help_enabled()
+  return config.help == true
+end
 
 local function start_of_day(timestamp)
   return os.time({
@@ -544,9 +548,9 @@ local function build_agenda_sections(tasks, today)
     end
   end
 
-  table.insert(lines, '')
-  table.insert(lines, string.rep('─', 60))
-  if config.show_help then
+  if is_help_enabled() then
+    table.insert(lines, '')
+    table.insert(lines, string.rep('─', 60))
     table.insert(lines, string.format('%s = scheduled  %s ≤1d  %s 2-4d  %s >4d  %s = overdue',
       icons.scheduled, icons.deadline_urgent, icons.deadline_soon, icons.deadline_ok, icons.overdue))
     table.insert(lines, '<Enter> jump  <Tab> toggle section  <Esc>/<q> close')
@@ -889,7 +893,16 @@ function M.open()
 end
 
 function M.setup(opts)
-  config = vim.tbl_deep_extend('force', defaults, opts or {})
+  local normalized_opts = vim.deepcopy(opts or {})
+  if normalized_opts.hide ~= nil and normalized_opts.help == nil then
+    normalized_opts.help = not normalized_opts.hide
+  end
+
+  if normalized_opts.show_help ~= nil and normalized_opts.help == nil then
+    normalized_opts.help = normalized_opts.show_help
+  end
+
+  config = vim.tbl_deep_extend('force', defaults, normalized_opts)
 
   vim.api.nvim_create_user_command('MarkdownAgenda', function()
     M.open()
