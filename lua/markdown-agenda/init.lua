@@ -35,10 +35,6 @@ local state = {
 
 local DAY_SECONDS = 24 * 60 * 60
 local format_task_line
-local build_calendar_lines
-local build_calendar_month_block
-local compose_calendar_stack
-local compose_calendar_grid
 local pad_to_display_width
 
 local function start_of_day(timestamp)
@@ -197,7 +193,7 @@ local function build_deadline_map(tasks, today)
   return deadline_map
 end
 
-build_calendar_month_block = function(year, month, today_key, deadline_map)
+local function build_calendar_month_block(year, month, today_key, deadline_map)
   local lines = {}
   local highlights = {}
   local month_start_ts = os.time({ year = year, month = month, day = 1 })
@@ -255,7 +251,7 @@ build_calendar_month_block = function(year, month, today_key, deadline_map)
   }
 end
 
-compose_calendar_stack = function(blocks)
+local function compose_calendar_stack(blocks)
   local lines = {}
   local highlights = {}
 
@@ -282,7 +278,7 @@ compose_calendar_stack = function(blocks)
   return lines, highlights
 end
 
-compose_calendar_grid = function(blocks, columns, gap)
+local function compose_calendar_grid(blocks, columns, gap)
   local lines = {}
   local highlights = {}
   local spacing = string.rep(' ', gap)
@@ -341,7 +337,7 @@ compose_calendar_grid = function(blocks, columns, gap)
   return lines, highlights
 end
 
-build_calendar_lines = function(tasks, today, layout_position)
+local function build_calendar_lines(tasks, today, layout_position)
   local calendar_config = config.calendar or {}
   if not calendar_config.enabled then
     return {}, {}
@@ -405,6 +401,7 @@ local function merge_side_by_side(left_lines, right_lines, right_highlights, gap
   local merged_lines = {}
   local merged_highlights = {}
   local right_offsets = {}
+  local left_col_limits = {}
 
   local left_width = 0
   for _, line in ipairs(left_lines) do
@@ -421,6 +418,7 @@ local function merge_side_by_side(left_lines, right_lines, right_highlights, gap
 
     if #right_lines > 0 then
       right_offsets[i] = #left_padded + gap
+      left_col_limits[i] = #left_padded
       table.insert(merged_lines, left_padded .. separator .. right_line)
     else
       table.insert(merged_lines, left_line)
@@ -439,7 +437,7 @@ local function merge_side_by_side(left_lines, right_lines, right_highlights, gap
     end
   end
 
-  return merged_lines, merged_highlights
+  return merged_lines, merged_highlights, left_col_limits
 end
 
 local function build_agenda_sections(tasks, today)
@@ -553,6 +551,87 @@ local function get_window_size(lines)
   return width, height
 end
 
+local function append_lines(target, source)
+  local base_line = #target
+  for _, line in ipairs(source) do
+    table.insert(target, line)
+  end
+  return base_line
+end
+
+local function merge_line_map(target, source, base_line)
+  for line_num, value in pairs(source) do
+    target[base_line + line_num] = value
+  end
+end
+
+local function merge_section_lines(target, source, base_line)
+  for section_name, line_num in pairs(source) do
+    target[section_name] = base_line + line_num
+  end
+end
+
+local function merge_shifted_highlights(target, source, base_line)
+  for _, highlight in ipairs(source) do
+    table.insert(target, {
+      line = base_line + highlight.line,
+      start_col = highlight.start_col,
+      end_col = highlight.end_col,
+      group = highlight.group,
+    })
+  end
+end
+
+local function apply_buffer_highlights(buf, lines, calendar_highlights, left_col_limits)
+  vim.api.nvim_buf_clear_namespace(buf, -1, 0, -1)
+
+  local function add_highlight(group, line_idx, start_col, end_col)
+    local limit = left_col_limits and left_col_limits[line_idx]
+    local hl_end_col = end_col or -1
+
+    if limit then
+      if start_col >= limit then
+        return
+      end
+
+      if hl_end_col == -1 or hl_end_col > limit then
+        hl_end_col = limit
+      end
+    end
+
+    vim.api.nvim_buf_add_highlight(buf, -1, group, line_idx - 1, start_col, hl_end_col)
+  end
+
+  local icons = config.icons
+  for i, line in ipairs(lines) do
+    if line:match('^📅') or line:match('^─') or line:match('Calendar$') then
+      add_highlight('Title', i, 0, -1)
+    elseif line:match('^[' .. icons.expanded .. icons.collapsed .. ']') then
+      add_highlight('Function', i, 0, -1)
+    elseif line:match(icons.overdue) then
+      add_highlight('DiagnosticError', i, 0, -1)
+    elseif line:match('^  %a') then
+      add_highlight('Comment', i, 0, -1)
+    elseif line:match(icons.deadline_urgent) then
+      add_highlight('DiagnosticWarn', i, 0, -1)
+    end
+
+    if left_col_limits and line:match('Calendar$') then
+      local right_start = (left_col_limits[i] or 0) + 4
+      local calendar_col = line:find('Calendar', right_start, true)
+      if calendar_col then
+        vim.api.nvim_buf_add_highlight(buf, -1, 'Title', i - 1, calendar_col - 1, calendar_col - 1 + #'Calendar')
+      end
+    end
+  end
+
+  for _, highlight in ipairs(calendar_highlights) do
+    if highlight.group then
+      vim.api.nvim_buf_add_highlight(buf, -1, highlight.group, highlight.line - 1, highlight.start_col, highlight.end_col)
+    end
+  end
+end
+
 local function scan_files()
   local tasks = {}
   local directory = vim.fn.expand(config.directory)
@@ -653,8 +732,15 @@ local function build_agenda_lines(tasks)
   local task_map = {}
   local section_lines = {}
   local calendar_highlights = {}
+  local left_col_limits = {}
   local today = get_today_timestamp()
   local agenda_lines, agenda_task_map, agenda_section_lines = build_agenda_sections(tasks, today)
+
+  local function append_agenda_content()
+    local base_line = append_lines(lines, agenda_lines)
+    merge_line_map(task_map, agenda_task_map, base_line)
+    merge_section_lines(section_lines, agenda_section_lines, base_line)
+  end
 
   table.insert(lines, '📅 Agenda')
   table.insert(lines, string.rep('─', 60))
@@ -665,81 +751,34 @@ local function build_agenda_lines(tasks)
   if calendar_config.enabled and calendar_position == 'top' then
     local calendar_lines, relative_calendar_highlights = build_calendar_lines(tasks, today, 'top')
     if #calendar_lines > 0 then
-      local base_line = #lines
-      for _, calendar_line in ipairs(calendar_lines) do
-        table.insert(lines, calendar_line)
-      end
-
-      for _, highlight in ipairs(relative_calendar_highlights) do
-        table.insert(calendar_highlights, {
-          line = base_line + highlight.line,
-          start_col = highlight.start_col,
-          end_col = highlight.end_col,
-          group = highlight.group,
-        })
-      end
+      local base_line = append_lines(lines, calendar_lines)
+      merge_shifted_highlights(calendar_highlights, relative_calendar_highlights, base_line)
 
       table.insert(lines, '')
     end
 
-    local agenda_base_line = #lines
-    for _, agenda_line in ipairs(agenda_lines) do
-      table.insert(lines, agenda_line)
-    end
-
-    for line_num, task in pairs(agenda_task_map) do
-      task_map[agenda_base_line + line_num] = task
-    end
-
-    for section_name, line_num in pairs(agenda_section_lines) do
-      section_lines[section_name] = agenda_base_line + line_num
-    end
+    append_agenda_content()
   elseif calendar_config.enabled and calendar_position == 'right' then
     local calendar_lines, relative_calendar_highlights = build_calendar_lines(tasks, today, 'right')
-    local merged_lines, merged_calendar_highlights = merge_side_by_side(agenda_lines, calendar_lines, relative_calendar_highlights, 4)
-    local agenda_base_line = #lines
+    local merged_lines, merged_calendar_highlights, merged_left_col_limits = merge_side_by_side(agenda_lines, calendar_lines, relative_calendar_highlights, 4)
+    local base_line = append_lines(lines, merged_lines)
+    merge_line_map(task_map, agenda_task_map, base_line)
+    merge_section_lines(section_lines, agenda_section_lines, base_line)
+    merge_shifted_highlights(calendar_highlights, merged_calendar_highlights, base_line)
 
-    for _, merged_line in ipairs(merged_lines) do
-      table.insert(lines, merged_line)
-    end
-
-    for line_num, task in pairs(agenda_task_map) do
-      task_map[agenda_base_line + line_num] = task
-    end
-
-    for section_name, line_num in pairs(agenda_section_lines) do
-      section_lines[section_name] = agenda_base_line + line_num
-    end
-
-    for _, highlight in ipairs(merged_calendar_highlights) do
-      table.insert(calendar_highlights, {
-        line = agenda_base_line + highlight.line,
-        start_col = highlight.start_col,
-        end_col = highlight.end_col,
-        group = highlight.group,
-      })
+    for line_num, col_limit in pairs(merged_left_col_limits) do
+      left_col_limits[base_line + line_num] = col_limit
     end
   else
-    local agenda_base_line = #lines
-    for _, agenda_line in ipairs(agenda_lines) do
-      table.insert(lines, agenda_line)
-    end
-
-    for line_num, task in pairs(agenda_task_map) do
-      task_map[agenda_base_line + line_num] = task
-    end
-
-    for section_name, line_num in pairs(agenda_section_lines) do
-      section_lines[section_name] = agenda_base_line + line_num
-    end
+    append_agenda_content()
   end
 
-  return lines, task_map, section_lines, calendar_highlights
+  return lines, task_map, section_lines, calendar_highlights, left_col_limits
 end
 
 local function refresh_agenda(buf, win)
   local tasks = scan_files()
-  local lines, task_map, section_lines, calendar_highlights = build_agenda_lines(tasks)
+  local lines, task_map, section_lines, calendar_highlights, left_col_limits = build_agenda_lines(tasks)
 
   vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -749,34 +788,14 @@ local function refresh_agenda(buf, win)
   vim.api.nvim_win_set_width(win, width)
   vim.api.nvim_win_set_height(win, height)
 
-  vim.api.nvim_buf_clear_namespace(buf, -1, 0, -1)
-  local icons = config.icons
-  for i, line in ipairs(lines) do
-    if line:match('^📅') or line:match('^─') or line:match('Calendar$') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'Title', i - 1, 0, -1)
-    elseif line:match('^[' .. icons.expanded .. icons.collapsed .. ']') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'Function', i - 1, 0, -1)
-    elseif line:match(icons.overdue) then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'DiagnosticError', i - 1, 0, -1)
-    elseif line:match('^  %a') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'Comment', i - 1, 0, -1)
-    elseif line:match(icons.deadline_urgent) then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'DiagnosticWarn', i - 1, 0, -1)
-    end
-  end
-
-  for _, highlight in ipairs(calendar_highlights) do
-    if highlight.group then
-      vim.api.nvim_buf_add_highlight(buf, -1, highlight.group, highlight.line - 1, highlight.start_col, highlight.end_col)
-    end
-  end
+  apply_buffer_highlights(buf, lines, calendar_highlights, left_col_limits)
 
   return task_map, section_lines
 end
 
 function M.open()
   local tasks = scan_files()
-  local lines, task_map, section_lines, calendar_highlights = build_agenda_lines(tasks)
+  local lines, task_map, section_lines, calendar_highlights, left_col_limits = build_agenda_lines(tasks)
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -840,26 +859,7 @@ function M.open()
     end
   end, { buffer = buf, nowait = true })
 
-  local icons = config.icons
-  for i, line in ipairs(lines) do
-    if line:match('^📅') or line:match('^─') or line:match('Calendar$') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'Title', i - 1, 0, -1)
-    elseif line:match('^[' .. icons.expanded .. icons.collapsed .. ']') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'Function', i - 1, 0, -1)
-    elseif line:match(icons.overdue) then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'DiagnosticError', i - 1, 0, -1)
-    elseif line:match('^  %a') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'Comment', i - 1, 0, -1)
-    elseif line:match(icons.deadline_urgent) then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'DiagnosticWarn', i - 1, 0, -1)
-    end
-  end
-
-  for _, highlight in ipairs(calendar_highlights) do
-    if highlight.group then
-      vim.api.nvim_buf_add_highlight(buf, -1, highlight.group, highlight.line - 1, highlight.start_col, highlight.end_col)
-    end
-  end
+  apply_buffer_highlights(buf, lines, calendar_highlights, left_col_limits)
 end
 
 function M.setup(opts)
