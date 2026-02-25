@@ -62,7 +62,7 @@ require('markdown-agenda').setup({
   date_format = '%Y-%m-%d',
 
   -- Show footer help in the agenda window
-  show_help = true,
+  help = true,
 
   -- Calendar settings
   calendar = {
