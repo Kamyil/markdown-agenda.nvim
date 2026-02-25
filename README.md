@@ -10,10 +10,12 @@ A minimal, focused agenda view for your markdown notes. Scans your notes directo
 ## Features
 
 - **Agenda view** - Today's tasks + weekly overview in a floating window
+- **Inline calendar** - Optional month calendar above or side-by-side
 - **Deadline urgency** - Visual indicators for deadline proximity
 - **Overdue tracking** - Never miss a deadline again
 - **Scheduled tasks** - Plan your work with scheduled dates
 - **Collapsible sections** - Toggle Today/Week sections with `<Tab>`
+- **Clean mode** - Optionally hide the help footer
 - **Zero dependencies** - Pure Lua, no external dependencies
 
 ## Installation
@@ -58,6 +60,18 @@ require('markdown-agenda').setup({
   -- Date format used in your notes
   -- Options: '%Y-%m-%d' (2025-12-30), '%m/%d/%Y' (12/30/2025), '%d/%m/%Y' (30/12/2025)
   date_format = '%Y-%m-%d',
+
+  -- Show footer help in the agenda window
+  help = true,
+
+  -- Calendar settings
+  calendar = {
+    enabled = true,
+    months_to_show = 3, -- current month + N-1 months ahead
+    position = 'right', -- 'right' or 'top'
+    grid_columns = 2,   -- used in 'top' mode (set months_to_show=4 for a 2x2 grid)
+    week_start = 'monday', -- 'monday' or 'sunday'
+  },
   
   -- Customize icons
   icons = {
@@ -103,6 +117,16 @@ Add these annotations to your markdown tasks:
 | `<Enter>` | Jump to task in file |
 | `<Tab>` | Toggle section (Today/Week) |
 | `<Esc>` / `q` | Close agenda |
+
+### Calendar Colors
+
+Calendar day colors are based on **deadlines only**:
+
+- Overdue deadline -> overdue color
+- Deadline in 0-1 day -> urgent color
+- Deadline in 2-4 days -> soon color
+- Deadline in 5+ days -> ok color
+- Today (without deadline status) -> info color
 
 ## Task States
 
