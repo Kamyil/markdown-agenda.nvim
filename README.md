@@ -64,6 +64,17 @@ require('markdown-agenda').setup({
   -- Show footer help in the agenda window
   help = true,
 
+  -- Floating window border style
+  -- 'none', 'single', 'double', 'rounded', 'solid', 'shadow'
+  border = 'rounded',
+
+  -- Floating window title (set to false to hide)
+  title = ' Agenda ',
+
+  -- Floating window title alignment
+  -- 'left', 'center', 'right'
+  title_pos = 'center',
+
   -- Calendar settings
   calendar = {
     enabled = true,
