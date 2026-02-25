@@ -10,6 +10,7 @@ local defaults = {
     months_to_show = 3,
     position = 'right',
     grid_columns = 2,
+    week_start = 'monday',
   },
   icons = {
     scheduled = '📌',
@@ -168,6 +169,30 @@ local function add_months(year, month, offset)
   return new_year, new_month
 end
 
+local function normalize_week_start(value)
+  if value == 'monday' then
+    return 'monday'
+  end
+
+  return 'sunday'
+end
+
+local function get_weekday_header(week_start)
+  if week_start == 'monday' then
+    return 'Mo Tu We Th Fr Sa Su'
+  end
+
+  return 'Su Mo Tu We Th Fr Sa'
+end
+
+local function normalize_weekday_index(weekday, week_start)
+  if week_start == 'monday' then
+    return (weekday + 6) % 7
+  end
+
+  return weekday
+end
+
 local function build_deadline_map(tasks, today)
   local severity_rank = {
     ok = 1,
@@ -193,23 +218,23 @@ local function build_deadline_map(tasks, today)
   return deadline_map
 end
 
-local function build_calendar_month_block(year, month, today_key, deadline_map)
+local function build_calendar_month_block(year, month, today_key, deadline_map, week_start)
   local lines = {}
   local highlights = {}
   local month_start_ts = os.time({ year = year, month = month, day = 1 })
-  local first_weekday = tonumber(os.date('%w', month_start_ts))
+  local first_weekday = normalize_weekday_index(tonumber(os.date('%w', month_start_ts)), week_start)
   local days_in_month = tonumber(os.date('%d', os.time({ year = year, month = month + 1, day = 0 })))
 
   table.insert(lines, os.date('%B %Y', month_start_ts))
-  table.insert(lines, 'Su Mo Tu We Th Fr Sa')
+  table.insert(lines, get_weekday_header(week_start))
 
   local day = 1
   while day <= days_in_month do
     local cells = {}
     local cell_data = {}
 
-    for weekday = 0, 6 do
-      if (day == 1 and weekday < first_weekday) or day > days_in_month then
+    for display_weekday = 0, 6 do
+      if (day == 1 and display_weekday < first_weekday) or day > days_in_month then
         table.insert(cells, '  ')
       else
         local day_text = string.format('%2d', day)
@@ -217,7 +242,7 @@ local function build_calendar_month_block(year, month, today_key, deadline_map)
 
         table.insert(cells, day_text)
         table.insert(cell_data, {
-          weekday = weekday,
+          weekday = display_weekday,
           day_key = day_key,
         })
 
@@ -346,6 +371,7 @@ local function build_calendar_lines(tasks, today, layout_position)
   local months_to_show = tonumber(calendar_config.months_to_show) or 1
   months_to_show = math.max(1, math.floor(months_to_show))
   local layout = layout_position or calendar_config.position or 'top'
+  local week_start = normalize_week_start(calendar_config.week_start)
 
   local today_key = os.date('%Y-%m-%d', today)
   local today_year = tonumber(os.date('%Y', today))
@@ -355,7 +381,7 @@ local function build_calendar_lines(tasks, today, layout_position)
 
   for month_offset = 0, months_to_show - 1 do
     local year, month = add_months(today_year, today_month, month_offset)
-    table.insert(month_blocks, build_calendar_month_block(year, month, today_key, deadline_map))
+    table.insert(month_blocks, build_calendar_month_block(year, month, today_key, deadline_map, week_start))
   end
 
   local body_lines = {}
