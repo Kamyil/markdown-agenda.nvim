@@ -70,6 +70,7 @@ require('markdown-agenda').setup({
     months_to_show = 3, -- current month + N-1 months ahead
     position = 'right', -- 'right' or 'top'
     grid_columns = 2,   -- used in 'top' mode (set months_to_show=4 for a 2x2 grid)
+    week_start = 'monday', -- 'monday' or 'sunday'
   },
   
   -- Customize icons
