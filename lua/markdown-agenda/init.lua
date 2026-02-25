@@ -5,6 +5,9 @@ local defaults = {
   recursive = true,
   date_format = '%Y-%m-%d',
   help = true,
+  border = 'rounded',
+  title = ' Agenda ',
+  title_pos = 'center',
   calendar = {
     enabled = true,
     months_to_show = 3,
@@ -40,6 +43,35 @@ local pad_to_display_width
 
 local function is_help_enabled()
   return config.help == true
+end
+
+local function get_window_border()
+  if type(config.border) == 'string' or type(config.border) == 'table' then
+    return config.border
+  end
+
+  return defaults.border
+end
+
+local function get_window_title()
+  if config.title == false then
+    return nil
+  end
+
+  if type(config.title) == 'string' then
+    return config.title
+  end
+
+  return defaults.title
+end
+
+local function get_window_title_pos()
+  local value = config.title_pos
+  if value == 'left' or value == 'center' or value == 'right' then
+    return value
+  end
+
+  return defaults.title_pos
 end
 
 local function start_of_day(timestamp)
@@ -836,6 +868,7 @@ function M.open()
   local width, height = get_window_size(lines)
   local row = math.floor((vim.o.lines - height) / 2)
   local col = math.floor((vim.o.columns - width) / 2)
+  local window_title = get_window_title()
 
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -844,9 +877,9 @@ function M.open()
     row = row,
     col = col,
     style = 'minimal',
-    border = 'rounded',
-    title = ' Agenda ',
-    title_pos = 'center',
+    border = get_window_border(),
+    title = window_title,
+    title_pos = window_title and get_window_title_pos() or nil,
   })
 
   vim.api.nvim_set_option_value('cursorline', true, { win = win })
