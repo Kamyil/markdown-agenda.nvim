@@ -5,6 +5,7 @@ local defaults = {
   recursive = true,
   date_format = '%Y-%m-%d',
   help = true,
+  help_separator = true,
   border = 'rounded',
   title = ' Agenda ',
   title_pos = 'center',
@@ -43,6 +44,10 @@ local pad_to_display_width
 
 local function is_help_enabled()
   return config.help == true
+end
+
+local function is_help_separator_enabled()
+  return config.help_separator == true
 end
 
 local function get_window_border()
@@ -582,7 +587,9 @@ local function build_agenda_sections(tasks, today)
 
   if is_help_enabled() then
     table.insert(lines, '')
-    table.insert(lines, string.rep('─', 60))
+    if is_help_separator_enabled() then
+      table.insert(lines, string.rep('─', 60))
+    end
     table.insert(lines, string.format('%s = scheduled  %s ≤1d  %s 2-4d  %s >4d  %s = overdue',
       icons.scheduled, icons.deadline_urgent, icons.deadline_soon, icons.deadline_ok, icons.overdue))
     table.insert(lines, '<Enter> jump  <Tab> toggle section  <Esc>/<q> close')
