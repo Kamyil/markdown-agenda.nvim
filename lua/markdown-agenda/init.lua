@@ -5,6 +5,7 @@ local defaults = {
   recursive = true,
   date_format = '%Y-%m-%d',
   help = true,
+  header_separator = true,
   help_separator = true,
   border = 'rounded',
   title = ' Agenda ',
@@ -44,6 +45,10 @@ local pad_to_display_width
 
 local function is_help_enabled()
   return config.help == true
+end
+
+local function is_header_separator_enabled()
+  return config.header_separator == true
 end
 
 local function is_help_separator_enabled()
@@ -812,7 +817,9 @@ local function build_agenda_lines(tasks)
   end
 
   table.insert(lines, '📅 Agenda')
-  table.insert(lines, string.rep('─', 60))
+  if is_header_separator_enabled() then
+    table.insert(lines, string.rep('─', 60))
+  end
   table.insert(lines, '')
 
   local calendar_config = config.calendar or {}
@@ -934,6 +941,15 @@ end
 
 function M.setup(opts)
   local normalized_opts = vim.deepcopy(opts or {})
+
+  if normalized_opts.header_separator == nil and normalized_opts.separator ~= nil then
+    normalized_opts.header_separator = normalized_opts.separator
+  end
+
+  if normalized_opts.header_separator == nil and normalized_opts.help == false and normalized_opts.help_separator ~= nil then
+    normalized_opts.header_separator = normalized_opts.help_separator
+  end
+
   if normalized_opts.hide ~= nil and normalized_opts.help == nil then
     normalized_opts.help = not normalized_opts.hide
   end

@@ -64,7 +64,10 @@ require('markdown-agenda').setup({
   -- Show footer help in the agenda window
   help = true,
 
-  -- Show separator line above footer help
+  -- Show header separator line under the title
+  header_separator = true,
+
+  -- Show separator line above footer help text
   help_separator = true,
 
   -- Floating window border style
